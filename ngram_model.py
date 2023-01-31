@@ -14,13 +14,20 @@ function to find all meaningful text from blog posts and return it all in one st
 
 def read_blogs(blog_dir):
     output_string = ""
-    # PlainTextCorpusReader was used as it automatically puts the corpus in order
+    # store all files into a corpus using PlainTextCorpusReader
     file_corpus = nltk.corpus.PlaintextCorpusReader(blog_dir, ".*",
                                                     encoding="ISO-8859-1")  # odd encoding issue, had to switch to ISO-8859-1
-    blog_names = file_corpus.fileids()
 
-    for blog in blog_names:
-        file = file_corpus.open(blog)
+    blog_names = file_corpus.fileids()
+    ordered_blog_names = {}
+    for blog_name in blog_names:  # loop through the file ids and store them in a new dictionary 
+        split_name = blog_name.split(".")
+        ordered_blog_names[int(split_name[0])] = blog_name  
+    sorted_ids = sorted(ordered_blog_names.keys())  # sort ids in ascending order
+
+    for id in sorted_ids:
+        file_id = ordered_blog_names[id]
+        file = file_corpus.open(file_id)
         post_marker = False  # boolean marker to tell the function if we are in a post or not
 
         for line in file.readlines():
@@ -114,8 +121,8 @@ def predict(text, unigrams, bigrams, trigrams):
     uni_dict, bi_dict, tri_dict = deepcopy(unigrams), deepcopy(bigrams), deepcopy(trigrams)
     words = text.split()
 
-    bigram_matches = {key: value for key, value in bi_dict.items() if key.startswith(words[-1])}  # dictionary of all bigrams that start with the last word of inputted text
-    trigram_matches = {key: value for key, value in tri_dict.items() if key.startswith(words[-2] + " " + words[-1])}  # dictionary of all trigrams that start with the last two words of inputted text
+    bigram_matches = {key: value for key, value in bi_dict.items() if key.startswith(words[-1] + " ")}  # dictionary of all bigrams that start with the last word of inputted text
+    trigram_matches = {key: value for key, value in tri_dict.items() if key.startswith(words[-2] + " " + words[-1] + " ")}  # dictionary of all trigrams that start with the last two words of inputted text
 
 # Laplace smoothing for each dictionary
     for unigram in uni_dict:
@@ -136,7 +143,7 @@ def predict(text, unigrams, bigrams, trigrams):
 
     trigram_suggestion = nltk.FreqDist(trigram_matches).max()  # highest frequency trigram in training corpus
     trigram_probability = tri_dict[trigram_suggestion] / (bi_dict[words[-2] + " " + words[-1]] + len(uni_dict.keys()))
-
+    print(bigram_suggestion)
     print("INPUT:" + text +
           "\n1-gram suggestion:", unigram_suggestion, ", with a probability of", '{:.4%}'.format(unigram_probability),
           "\n2-gram suggestion:", bigram_suggestion, ", with a probability of", '{:.4%}'.format(bigram_probability),
@@ -148,7 +155,7 @@ def main():
     blog_text = read_blogs(blogs_dir_path)
     unigrams, bigrams, trigrams = count_words(blog_text)
     print_frequent_n_grams(unigrams, bigrams, trigrams, 5)
-    sample_texts = ["the past few", "pass the salt and", "jump over", " in the"]
+    sample_texts = ["the past few", "pass the salt and", "jump over", "in the"]
     for sample in sample_texts:
         predict(sample, unigrams, bigrams, trigrams)
 
